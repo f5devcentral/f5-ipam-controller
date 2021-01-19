@@ -2,22 +2,24 @@ package main
 
 import (
 	"fmt"
-	"golang.org/x/crypto/ssh/terminal"
 	"os"
 	"os/signal"
 	"strings"
 	"syscall"
 
-	flag "github.com/spf13/pflag"
+	"golang.org/x/crypto/ssh/terminal"
+
 	"github.com/f5devcentral/f5-ipam-controller/pkg/controller"
 	"github.com/f5devcentral/f5-ipam-controller/pkg/manager"
 	"github.com/f5devcentral/f5-ipam-controller/pkg/orchestration"
 	log "github.com/f5devcentral/f5-ipam-controller/pkg/vlogger"
 	clog "github.com/f5devcentral/f5-ipam-controller/pkg/vlogger/console"
+	flag "github.com/spf13/pflag"
 )
 
 const (
-	DefaultProvider = manager.F5IPAMProvider
+	DefaultProvider  = manager.F5IPAMProvider
+	InfobloxProvider = manager.INFOBLOXProvider
 )
 
 var (
@@ -25,6 +27,7 @@ var (
 	flags         *flag.FlagSet
 	globalFlags   *flag.FlagSet
 	providerFlags *flag.FlagSet
+	infobloxFlags *flag.FlagSet
 
 	// Global
 	logLevel *string
@@ -32,13 +35,20 @@ var (
 	provider *string
 
 	// Provider
-	iprange *string
+	iprange           *string
+	infobloxHost      *string
+	infobloxUsername  *string
+	infobloxPassword  *string
+	infobloxVersion   *string
+	infobloxPort      *string
+	infobloxSSLVerify *string
 )
 
 func init() {
 	flags = flag.NewFlagSet("main", flag.ContinueOnError)
 	globalFlags = flag.NewFlagSet("Global", flag.ContinueOnError)
 	providerFlags = flag.NewFlagSet("Provider", flag.ContinueOnError)
+	infobloxFlags = flag.NewFlagSet("Infoblox", flag.ContinueOnError)
 
 	//Flag terminal wrapping
 	var err error
@@ -60,6 +70,24 @@ func init() {
 
 	iprange = providerFlags.String("ip-range", "",
 		"Optional, the Default Provider needs iprange to build pools of IP Addresses")
+
+	infobloxHost = infobloxFlags.String("infoblox-host", "",
+		"Optional, the Infoblox Provider needs infoblox-host")
+
+	infobloxPort = infobloxFlags.String("wapi-port", "",
+		"Optional, the Infoblox Provider needs infoblox-port")
+
+	infobloxUsername = infobloxFlags.String("wapi-username", "",
+		"Optional, the Infoblox Provider needs infoblox-UserName")
+
+	infobloxPassword = infobloxFlags.String("wapi-password", "",
+		"Optional, the Infoblox Provider needs infoblox-Password")
+
+	infobloxVersion = infobloxFlags.String("wapi-version", "",
+		"Optional, the Infoblox Provider needs infoblox-version")
+
+	infobloxSSLVerify = infobloxFlags.String("ssl-verify", "false",
+		"Optional, the Infoblox Provider to enable verification of server certificate")
 
 	globalFlags.Usage = func() {
 		_, _ = fmt.Fprintf(os.Stderr, "  Global:\n%s\n", globalFlags.FlagUsagesWrapped(width))
@@ -116,24 +144,34 @@ func main() {
 		flags.Usage()
 		os.Exit(1)
 	}
-
 	orcr := orchestration.NewOrchestrator()
 	if orcr == nil {
 		log.Error("Unable to create IPAM Client")
 		os.Exit(1)
 	}
-	mgrParams := manager.Params{
-		Provider:          *provider,
-		IPAMManagerParams: manager.IPAMManagerParams{Range: *iprange},
+	var mgrParams manager.Params
+	if *provider == InfobloxProvider { // Infoblox Provider
+		mgrParams.InfobloxParams = manager.InfobloxParams{
+			Host:      *infobloxHost,
+			Version:   *infobloxVersion,
+			Port:      *infobloxPort,
+			Username:  *infobloxUsername,
+			Password:  *infobloxPassword,
+			SSLVerify: *infobloxSSLVerify,
+		}
+		mgrParams.Provider = InfobloxProvider
+	} else {
+		//Default Provider Static Approach
+		mgrParams.IPAMManagerParams = manager.IPAMManagerParams{Range: *iprange}
+		mgrParams.Provider = DefaultProvider
 	}
-	mgrParams.Range = *iprange
-	mgr := manager.NewManager(mgrParams)
+
 	stopCh := make(chan struct{})
 
 	ctlr := controller.NewController(
 		controller.Spec{
 			Orchestrator: orcr,
-			Manager:      mgr,
+			Manager:      manager.NewManager(mgrParams),
 			StopCh:       stopCh,
 		},
 	)

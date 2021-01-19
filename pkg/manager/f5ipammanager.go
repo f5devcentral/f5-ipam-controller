@@ -27,7 +27,13 @@ func NewIPAMManager(params IPAMManagerParams) *IPAMManager {
 }
 
 // Creates an A record
-func (ipMgr *IPAMManager) CreateARecord(hostname, ipAddr string) bool {
+func (ipMgr *IPAMManager) CreateARecord(params ...interface{}) bool {
+	if len(params) != 2 {
+		log.Errorf("[IPMG] Correct no. of arguments not passed")
+		return false
+	}
+	hostname := params[0].(string)
+	ipAddr := params[1].(string)
 	if !isIPV4Addr(ipAddr) {
 		log.Errorf("[IPMG] Invalid IP Address Provided")
 		return false
@@ -38,7 +44,14 @@ func (ipMgr *IPAMManager) CreateARecord(hostname, ipAddr string) bool {
 }
 
 // Deletes an A record and releases the IP address
-func (ipMgr *IPAMManager) DeleteARecord(hostname, ipAddr string) {
+func (ipMgr *IPAMManager) DeleteARecord(params ...interface{}) {
+	if len(params) != 2 {
+		log.Errorf("[IPMG] Correct no. of arguments not passed")
+		return
+	}
+	hostname := params[0].(string)
+	ipAddr := params[1].(string)
+
 	if !isIPV4Addr(ipAddr) {
 		log.Errorf("[IPMG] Invalid IP Address Provided")
 		return
