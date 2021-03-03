@@ -33,9 +33,9 @@ import (
 const (
 
 	// F5IPAM is a F5 Custom Resource Kind.
-	F5ipam = "F5IPAM"
+	F5ipam = "IPAM"
 
-	CRDPlural   string = "f5ipams"
+	CRDPlural   string = "ipams"
 	CRDGroup    string = "fic.f5.com"
 	CRDVersion  string = "v1"
 	FullCRDName string = CRDPlural + "." + CRDGroup

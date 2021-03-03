@@ -23,6 +23,7 @@ type F5IPAMSpec struct {
 
 type HostSpec struct {
 	Host string `json:"host,omitempty"`
+	Key  string `json:"key,omitempty"`
 	Cidr string `json:"cidr,omitempty"`
 }
 
